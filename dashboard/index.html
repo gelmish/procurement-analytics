@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ProcureEdge Supply Solutions — Procurement Analytics</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --ink:       #0f1923;
+    --ink-2:     #2d3f50;
+    --ink-3:     #5a7080;
+    --surface:   #f7f9fb;
+    --card:      #ffffff;
+    --border:    #dde4ea;
+    --accent:    #1a6bff;
+    --accent-dk: #0050d8;
+    --good:      #16a34a;
+    --warn:      #d97706;
+    --bad:       #dc2626;
+    --neutral:   #475569;
+    --tab-h:     52px;
+    --radius:    10px;
+    --shadow:    0 2px 12px rgba(15,25,35,.08);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+  .header {
+    background: var(--ink);
+    color: #fff;
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 60px;
+    border-bottom: 3px solid var(--accent);
+  }
+  .header-brand { display: flex; align-items: center; gap: 12px; }
+  .header-logo  { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; color: #fff; }
+  .header-logo span { color: var(--accent); }
+  .header-sub   { font-size: 11px; color: #8fa5bb; text-transform: uppercase; letter-spacing: 1px; }
+  .header-meta  { font-size: 12px; color: #8fa5bb; }
+  .tab-bar {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    padding: 0 32px;
+    gap: 4px;
+    overflow-x: auto;
+  }
+  .tab-btn {
+    height: var(--tab-h);
+    padding: 0 20px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-3);
+    border-bottom: 3px solid transparent;
+    white-space: nowrap;
+    transition: color .15s, border-color .15s;
+  }
+  .tab-btn:hover  { color: var(--ink); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+  .content { display: none; padding: 28px 32px 48px; max-width: 1400px; margin: 0 auto; }
+  .content.active { display: block; }
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .kpi-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    box-shadow: var(--shadow);
+  }
+  .kpi-label  { font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 6px; }
+  .kpi-value  { font-size: 26px; font-weight: 800; letter-spacing: -1px; color: var(--ink); line-height: 1; }
+  .kpi-trend  { font-size: 11px; color: var(--ink-3); margin-top: 6px; }
+  .kpi-bar    { height: 3px; border-radius: 2px; margin-top: 10px; }
+  .kpi-bar.good    { background: var(--good); }
+  .kpi-bar.bad     { background: var(--bad); }
+  .kpi-bar.warn    { background: var(--warn); }
+  .kpi-bar.neutral { background: var(--border); }
+  .kpi-value.good  { color: var(--good); }
+  .kpi-value.bad   { color: var(--bad); }
+  .kpi-value.warn  { color: var(--warn); }
+  .chart-grid   { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .chart-grid-3 { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .chart-full   { margin-bottom: 20px; }
+  .chart-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    box-shadow: var(--shadow);
+  }
+  .chart-title { font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+  .chart-sub   { font-size: 11px; color: var(--ink-3); margin-bottom: 16px; }
+  .chart-wrap canvas { max-height: 280px; }
+  .chart-wrap.tall canvas { max-height: 340px; }
+  .section-heading {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--ink-3);
+    margin: 28px 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th {
+    text-align: left; font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .5px;
+    color: var(--ink-3); padding: 10px 12px;
+    border-bottom: 2px solid var(--border); white-space: nowrap;
+  }
+  td { padding: 9px 12px; border-bottom: 1px solid #f0f3f6; color: var(--ink-2); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f7faff; }
+  .badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge-low     { background:#dcfce7; color:#15803d; }
+  .badge-medium  { background:#fef9c3; color:#854d0e; }
+  .badge-high    { background:#fee2e2; color:#b91c1c; }
+  .badge-a       { background:#dbeafe; color:#1d4ed8; }
+  .badge-b       { background:#e0e7ff; color:#4338ca; }
+  .badge-c       { background:#fef3c7; color:#92400e; }
+  .badge-d       { background:#fee2e2; color:#b91c1c; }
+  .badge-preferred    { background:#dcfce7; color:#15803d; }
+  .badge-nonpreferred { background:#f1f5f9; color:#64748b; }
+  .rec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .rec-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px 22px;
+    box-shadow: var(--shadow); border-left: 4px solid var(--border);
+  }
+  .rec-card.HIGH   { border-left-color: var(--bad); }
+  .rec-card.MEDIUM { border-left-color: var(--warn); }
+  .rec-card.LOW    { border-left-color: var(--good); }
+  .rec-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .rec-priority {
+    font-size: 10px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: .8px; padding: 3px 8px; border-radius: 4px;
+  }
+  .rec-priority.HIGH   { background:#fee2e2; color:#b91c1c; }
+  .rec-priority.MEDIUM { background:#fef3c7; color:#92400e; }
+  .rec-priority.LOW    { background:#dcfce7; color:#15803d; }
+  .rec-area    { font-size: 13px; font-weight: 700; color: var(--ink); }
+  .rec-finding { font-size: 12px; color: var(--ink-3); margin-bottom: 10px; }
+  .rec-action  {
+    font-size: 12px; color: var(--ink-2);
+    background: #f7f9fb; border-radius: 6px;
+    padding: 10px 12px; margin-bottom: 8px;
+  }
+  .rec-footer { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-3); }
+  .rec-saving { font-weight: 600; color: var(--good); }
+  .alert {
+    display: flex; align-items: flex-start; gap: 12px;
+    background: #fff7ed; border: 1px solid #fed7aa;
+    border-radius: var(--radius); padding: 14px 18px;
+    margin-bottom: 20px; font-size: 12.5px; color: #92400e;
+  }
+  .alert-icon { font-size: 18px; line-height: 1; }
+  @media (max-width: 900px) {
+    .chart-grid, .chart-grid-3, .rec-grid { grid-template-columns: 1fr; }
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .content { padding: 16px 16px 40px; }
+    .header, .tab-bar { padding: 0 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-brand">
+    <div>
+      <div class="header-logo">Procure<span>Edge</span></div>
+      <div class="header-sub">Supply Solutions Ltd — Procurement Analytics</div>
+    </div>
+  </div>
+  <div class="header-meta">FY2023–2024 &nbsp;|&nbsp; 18 Suppliers &nbsp;|&nbsp; £412.9M Total Spend</div>
+</header>
+
+<nav class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('executive',this)">Executive Summary</button>
+  <button class="tab-btn" onclick="switchTab('spend',this)">Spend Analysis</button>
+  <button class="tab-btn" onclick="switchTab('supplier',this)">Supplier Performance</button>
+  <button class="tab-btn" onclick="switchTab('risk',this)">Risk &amp; Compliance</button>
+  <button class="tab-btn" onclick="switchTab('recommendations',this)">Recommendations</button>
+</nav>
+
+<div id="tab-executive" class="content active">
+  <div class="alert">
+    <span class="alert-icon">⚠</span>
+    <span><strong>Management Alert:</strong> Late delivery rate (17.7%) and invoice exception rate (12.7%) both exceed acceptable thresholds. Three high-risk suppliers account for £28M in unhedged spend. Immediate action recommended — see Recommendations tab.</span>
+  </div>
+  <div class="kpi-grid" id="kpi-grid"></div>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Spend by Category</div>
+      <div class="chart-sub">Net spend (£000s) — all categories, FY2023–2024</div>
+      <div class="chart-wrap"><canvas id="catChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Monthly Spend Trend</div>
+      <div class="chart-sub">Total net spend per month (£000s)</div>
+      <div class="chart-wrap"><canvas id="monthlyChart"></canvas></div>
+    </div>
+  </div>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Supplier Risk Concentration</div>
+      <div class="chart-sub">% of total spend by supplier risk rating</div>
+      <div class="chart-wrap"><canvas id="riskDonut"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Invoice Match Breakdown</div>
+      <div class="chart-sub">PO count by invoice matching outcome</div>
+      <div class="chart-wrap"><canvas id="invoiceChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div id="tab-spend" class="content">
+  <div class="chart-grid-3">
+    <div class="chart-card">
+      <div class="chart-title">Top 10 Suppliers by Spend</div>
+      <div class="chart-sub">Net spend (£000s) — risk colour coded</div>
+      <div class="chart-wrap tall"><canvas id="supplierSpendChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Spend by Department</div>
+      <div class="chart-sub">Net spend (£000s) by cost centre</div>
+      <div class="chart-wrap tall"><canvas id="deptChart"></canvas></div>
+    </div>
+  </div>
+  <div class="chart-full chart-card">
+    <div class="chart-title">Quarterly Spend — 2023 vs 2024</div>
+    <div class="chart-sub">Quarter-on-quarter comparison (£000s)</div>
+    <div class="chart-wrap"><canvas id="quarterlyChart"></canvas></div>
+  </div>
+  <p class="section-heading">Budget vs Actual by Category</p>
+  <div class="chart-card">
+    <div class="tbl-wrap">
+      <table id="budgetTable">
+        <thead>
+          <tr>
+            <th>Category</th><th>2-Yr Budget</th><th>Actual Spend</th>
+            <th>Variance</th><th>Variance %</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="tab-supplier" class="content">
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">On-Time Delivery by Supplier</div>
+      <div class="chart-sub">% of POs delivered on time</div>
+      <div class="chart-wrap tall"><canvas id="otdChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Savings Rate by Supplier</div>
+      <div class="chart-sub">Average discount % achieved</div>
+      <div class="chart-wrap tall"><canvas id="discountChart"></canvas></div>
+    </div>
+  </div>
+  <p class="section-heading">Supplier Performance Scorecard</p>
+  <div class="chart-card">
+    <div class="tbl-wrap">
+      <table id="scorecardTable">
+        <thead>
+          <tr>
+            <th>Supplier</th><th>Country</th><th>Risk</th><th>Preferred</th>
+            <th>Total Spend</th><th>POs</th><th>OTD %</th>
+            <th>Avg Lead (days)</th><th>Defect Rate</th><th>Avg Discount</th>
+            <th>Score</th><th>Grade</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="tab-risk" class="content">
+  <div class="kpi-grid" style="grid-template-columns: repeat(4,1fr); margin-bottom:24px;">
+    <div class="kpi-card">
+      <div class="kpi-label">High-Risk Spend</div>
+      <div class="kpi-value warn">6.79%</div>
+      <div class="kpi-trend">£28.1M at risk</div>
+      <div class="kpi-bar warn"></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Late Delivery Rate</div>
+      <div class="kpi-value bad">17.7%</div>
+      <div class="kpi-trend">Target &lt;10%</div>
+      <div class="kpi-bar bad"></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Invoice Exceptions</div>
+      <div class="kpi-value bad">12.7%</div>
+      <div class="kpi-trend">312 POs flagged</div>
+      <div class="kpi-bar bad"></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Supplier Concentration</div>
+      <div class="kpi-value warn">61.2%</div>
+      <div class="kpi-trend">Top 3 suppliers</div>
+      <div class="kpi-bar warn"></div>
+    </div>
+  </div>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Risk Rating — Spend Distribution</div>
+      <div class="chart-sub">% of total spend by risk tier</div>
+      <div class="chart-wrap"><canvas id="riskBar"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Pareto — Supplier Spend Concentration</div>
+      <div class="chart-sub">Cumulative % of spend (top suppliers first)</div>
+      <div class="chart-wrap"><canvas id="paretoChart"></canvas></div>
+    </div>
+  </div>
+  <p class="section-heading">Invoice Exceptions by Supplier</p>
+  <div class="chart-card">
+    <div class="tbl-wrap">
+      <table id="exceptionTable">
+        <thead>
+          <tr>
+            <th>Supplier</th><th>Risk Rating</th><th>Preferred</th>
+            <th>Total POs</th><th>Exceptions</th><th>Exception Rate</th><th>Total Spend</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="tab-recommendations" class="content">
+  <div class="alert">
+    <span class="alert-icon">💡</span>
+    <span><strong>Phase 6 — Recommendations:</strong> Every finding below is paired with a specific management action, responsible owner, estimated saving, and delivery timeline.</span>
+  </div>
+  <div class="rec-grid" id="rec-grid"></div>
+</div>
+
+<script>
+const DATA = {
+  kpis: [
+    {label:"Total Spend",        value:"£412.9M", trend:"+8.3% YoY",        status:"neutral"},
+    {label:"Total Savings",      value:"£16.0M",  trend:"3.87% rate",        status:"good"},
+    {label:"Total POs",          value:"1,200",   trend:"2,457 line items",  status:"neutral"},
+    {label:"Active Suppliers",   value:"18",      trend:"10 categories",     status:"neutral"},
+    {label:"Late Delivery Rate", value:"17.7%",   trend:"Target < 10%",      status:"bad"},
+    {label:"Invoice Exceptions", value:"12.7%",   trend:"Target < 5%",       status:"bad"},
+    {label:"Preferred Spend",    value:"87.9%",   trend:"of total spend",    status:"good"},
+    {label:"High-Risk Spend",    value:"6.79%",   trend:"£28.1M at risk",    status:"warn"},
+  ],
+  categories: {
+    labels: ["Professional Svcs","Logistics","IT Hardware","Raw Materials","Electronics","MRO","Chemicals","Office","Safety","Packaging"],
+    values: [157514,124095,51166,41518,15644,9733,7130,2749,2030,1319]
+  },
+  monthly: {
+    labels: ["Jan-23","Feb-23","Mar-23","Apr-23","May-23","Jun-23","Jul-23","Aug-23","Sep-23","Oct-23","Nov-23","Dec-23",
+             "Jan-24","Feb-24","Mar-24","Apr-24","May-24","Jun-24","Jul-24","Aug-24","Sep-24","Oct-24","Nov-24","Dec-24"],
+    values: [7115,9393,8750,19008,17865,32759,13802,14601,14774,20272,19543,25012,
+             10628,14434,15484,27193,22888,34553,20091,20030,16984,21614,20966,26421]
+  },
+  risk: { labels:["Low","Medium","High"], values:[83.43,9.78,6.79], colors:["#16a34a","#d97706","#dc2626"] },
+  invoice: { labels:["3-Way Match","2-Way Match","Exception"], values:[1813,332,312] },
+  suppliers: {
+    labels: ["FastTrack Logistics","RoboComponents Inc.","SwiftLog Packaging","SkyTech Instruments","DeltaTech Electronics","Horizon Electronics","ProBuild Materials","SteelCore Mfg","TechParts Global","Pinnacle Chemical"],
+    values: [109951,74128,68742,58176,15999,14362,12771,12754,11048,9025],
+    risk:   ["Low","Low","Low","Low","Medium","High","Low","Medium","Low","Medium"]
+  },
+  dept: {
+    labels: ["HR & Admin","Supply Chain","IT & Digital","Finance","Operations","QA","R&D","Manufacturing"],
+    values: [68422,60584,54981,52244,50782,49612,39936,36335]
+  },
+  quarterly: {
+    labels: ["Q1","Q2","Q3","Q4"],
+    y2023:  [25258,68632,43177,63827],
+    y2024:  [50546,84634,57105,69029]
+  },
+  budget: [
+    {cat:"Professional Services",  budget:2800000,  actual:157514236, var_pct:5525.5},
+    {cat:"Logistics & Transport",  budget:4400000,  actual:124094896, var_pct:2720.3},
+    {cat:"IT Hardware & Software", budget:2000000,  actual:51166086,  var_pct:2458.3},
+    {cat:"MRO & Spare Parts",      budget:2400000,  actual:9732842,   var_pct:305.5},
+    {cat:"Raw Materials",          budget:10400000, actual:41517810,  var_pct:299.2},
+    {cat:"Safety & PPE",           budget:800000,   actual:2029834,   var_pct:153.7},
+    {cat:"Office & Facilities",    budget:1200000,  actual:2748865,   var_pct:129.1},
+    {cat:"Electronic Components",  budget:7600000,  actual:15643691,  var_pct:105.8},
+    {cat:"Chemical Supplies",      budget:3600000,  actual:7129758,   var_pct:98.0},
+    {cat:"Packaging & Labelling",  budget:3200000,  actual:1318783,   var_pct:-58.8},
+  ],
+  scorecard: [
+    {name:"FastTrack Logistics",     country:"France",      risk:"Low",    pref:true,  spend:109951481,pos:168,otd:93.5,lead:7.2, defect:0.0,disc:4.1,score:88,grade:"A"},
+    {name:"RoboComponents Inc.",     country:"USA",         risk:"Low",    pref:true,  spend:74127937, pos:156,otd:91.0,lead:6.8, defect:0.0,disc:5.2,score:86,grade:"A"},
+    {name:"SwiftLog Packaging",      country:"Ireland",     risk:"Low",    pref:true,  spend:68742216, pos:78, otd:89.7,lead:7.5, defect:0.0,disc:4.8,score:84,grade:"A"},
+    {name:"SkyTech Instruments",     country:"Sweden",      risk:"Low",    pref:true,  spend:58176285, pos:143,otd:87.4,lead:7.1, defect:0.0,disc:4.5,score:82,grade:"A"},
+    {name:"DeltaTech Electronics",   country:"South Korea", risk:"Medium", pref:true,  spend:15999302, pos:65, otd:83.1,lead:13.4,defect:0.4,disc:3.6,score:74,grade:"B"},
+    {name:"Horizon Electronics",     country:"Taiwan",      risk:"High",   pref:false, spend:14362111, pos:53, otd:70.2,lead:23.1,defect:2.8,disc:1.1,score:58,grade:"C"},
+    {name:"ProBuild Materials Ltd",  country:"Spain",       risk:"Low",    pref:true,  spend:12771409, pos:71, otd:91.5,lead:7.8, defect:0.0,disc:4.2,score:83,grade:"A"},
+    {name:"SteelCore Manufacturing", country:"Poland",      risk:"Medium", pref:false, spend:12754474, pos:64, otd:85.9,lead:15.2,defect:0.6,disc:1.3,score:69,grade:"B"},
+    {name:"TechParts Global Ltd",    country:"UK",          risk:"Low",    pref:true,  spend:11047893, pos:88, otd:92.0,lead:7.0, defect:0.0,disc:5.5,score:87,grade:"A"},
+    {name:"Pinnacle Chemical Co.",   country:"Belgium",     risk:"Medium", pref:true,  spend:9025000,  pos:49, otd:86.5,lead:14.1,defect:0.3,disc:3.9,score:72,grade:"B"},
+    {name:"Pacific Rim Components",  country:"China",       risk:"High",   pref:false, spend:7842000,  pos:38, otd:68.4,lead:26.5,defect:3.2,disc:0.9,score:55,grade:"C"},
+    {name:"AlphaSteel Corp",         country:"Ukraine",     risk:"High",   pref:false, spend:5371000,  pos:28, otd:60.7,lead:29.3,defect:4.1,disc:0.7,score:48,grade:"D"},
+    {name:"BrightPath Chemicals",    country:"Germany",     risk:"Medium", pref:true,  spend:4922000,  pos:41, otd:84.2,lead:13.8,defect:0.5,disc:3.8,score:71,grade:"B"},
+    {name:"EuroSeal Plastics",       country:"Czech Rep.",  risk:"Low",    pref:true,  spend:3847000,  pos:35, otd:90.3,lead:8.1, defect:0.0,disc:4.3,score:82,grade:"A"},
+    {name:"Greenfield Agro",         country:"Nigeria",     risk:"Medium", pref:false, spend:2940000,  pos:22, otd:81.8,lead:14.5,defect:0.7,disc:1.5,score:67,grade:"B"},
+    {name:"NovaMed Components",      country:"Netherlands", risk:"Medium", pref:true,  spend:2180000,  pos:31, otd:87.1,lead:13.2,defect:0.2,disc:3.5,score:73,grade:"B"},
+    {name:"Meridian Office Supplies",country:"UK",          risk:"Low",    pref:false, spend:1834000,  pos:27, otd:93.8,lead:6.5, defect:0.0,disc:1.8,score:79,grade:"B"},
+    {name:"PrimePack Solutions",     country:"Portugal",    risk:"Low",    pref:true,  spend:1305000,  pos:19, otd:92.6,lead:7.3, defect:0.0,disc:4.0,score:83,grade:"A"},
+  ],
+  pareto: {
+    labels: ["FastTrack Logistics","RoboComponents","SwiftLog Packaging","SkyTech Instruments","DeltaTech Elec.","Others (13)"],
+    cumulative: [26.6,44.6,61.2,75.3,79.2,100]
+  },
+  recommendations: [
+    {priority:"HIGH",   area:"Supplier Concentration Risk",
+     finding:"Top 3 suppliers account for 61.2% of total spend (£252.5M). FastTrack Logistics alone = 26.6%.",
+     action:"Dual-source FastTrack Logistics within 6 months. Cap any single supplier at 20% of category spend.",
+     owner:"Head of Supply Chain", saving:"Estimated £8–12M annual saving", timeline:"Q2 2025"},
+    {priority:"HIGH",   area:"Late Delivery Rate",
+     finding:"17.7% of POs delivered late. High-risk suppliers average 25+ day lead times vs 7 days for Low-risk.",
+     action:"Implement SLA penalties. Move Horizon Electronics, AlphaSteel and Pacific Rim to improvement plans.",
+     owner:"Procurement Manager", saving:"£180K per 1pp improvement in OTD", timeline:"Q1 2025"},
+    {priority:"HIGH",   area:"Invoice Exception Rate",
+     finding:"12.7% of invoices flagged as exceptions vs industry benchmark of 5%.",
+     action:"Mandate e-invoicing for all Framework and Annual contract suppliers. Target 3-way match >90%.",
+     owner:"Finance Controller", saving:"£131K annually", timeline:"Q2 2025"},
+    {priority:"MEDIUM", area:"Savings Rate Below Target",
+     finding:"Current savings rate 3.87% vs 5.5% peer benchmark. Preferred suppliers deliver 4.8% vs 1.2%.",
+     action:"Consolidate to preferred suppliers. Renegotiate Framework agreements for 6%+ discount tier.",
+     owner:"CPO / Category Manager", saving:"£6.8M annually", timeline:"Q3 2025"},
+    {priority:"MEDIUM", area:"Professional Services Overrun",
+     finding:"Professional Services spend represents a 5,525% overspend on the modelled budget.",
+     action:"Implement SoW approval process. Require CFO sign-off for engagements >£50K.",
+     owner:"CFO", saving:"15–20% reduction in unplanned spend", timeline:"Q1 2025"},
+    {priority:"LOW",    area:"High-Risk Supplier Defects",
+     finding:"High-risk suppliers generate 6.79% of spend but account for the majority of quality defects.",
+     action:"Introduce incoming quality inspection. Define contractual defect KPI of <2%.",
+     owner:"QA Manager", saving:"£400–600K annually", timeline:"Q2 2025"},
+  ]
+};
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+function renderKPIs() {
+  document.getElementById('kpi-grid').innerHTML = DATA.kpis.map(k => `
+    <div class="kpi-card">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value ${k.status}">${k.value}</div>
+      <div class="kpi-trend">${k.trend}</div>
+      <div class="kpi-bar ${k.status}"></div>
+    </div>`).join('');
+}
+
+function renderBudgetTable() {
+  document.querySelector('#budgetTable tbody').innerHTML = DATA.budget.map(r => {
+    const status = r.var_pct > 5 ? 'Over Budget' : (r.var_pct < -5 ? 'Under Budget' : 'On Track');
+    const bc = status === 'Over Budget' ? 'badge-high' : (status === 'Under Budget' ? 'badge-a' : 'badge-medium');
+    const variance = r.actual - r.budget;
+    return `<tr>
+      <td><strong>${r.cat}</strong></td>
+      <td>£${(r.budget/1e6).toFixed(2)}M</td>
+      <td>£${(r.actual/1e6).toFixed(1)}M</td>
+      <td>${variance>0?'+':''}£${(variance/1e6).toFixed(1)}M</td>
+      <td style="color:${r.var_pct>5?'var(--bad)':r.var_pct<-5?'var(--accent)':'var(--good)'};font-weight:600">
+        ${r.var_pct>0?'+':''}${r.var_pct.toFixed(1)}%</td>
+      <td><span class="badge ${bc}">${status}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderScorecard() {
+  document.querySelector('#scorecardTable tbody').innerHTML = DATA.scorecard.map(r => `
+    <tr>
+      <td><strong>${r.name}</strong></td>
+      <td>${r.country}</td>
+      <td><span class="badge badge-${r.risk.toLowerCase()}">${r.risk}</span></td>
+      <td><span class="badge ${r.pref?'badge-preferred':'badge-nonpreferred'}">${r.pref?'Preferred':'Non-Pref'}</span></td>
+      <td>£${(r.spend/1e6).toFixed(1)}M</td>
+      <td>${r.pos}</td>
+      <td style="color:${r.otd>=85?'var(--good)':r.otd>=70?'var(--warn)':'var(--bad)'};font-weight:600">${r.otd}%</td>
+      <td>${r.lead.toFixed(1)}</td>
+      <td style="color:${r.defect<=0.5?'var(--good)':r.defect<=2?'var(--warn)':'var(--bad)'};font-weight:600">${r.defect.toFixed(1)}%</td>
+      <td>${r.disc.toFixed(1)}%</td>
+      <td><div style="background:#f0f3f6;border-radius:4px;height:8px;width:80px;overflow:hidden">
+        <div style="width:${r.score}%;height:100%;background:${r.score>=80?'var(--good)':r.score>=65?'var(--accent)':r.score>=50?'var(--warn)':'var(--bad)'}"></div>
+      </div>&nbsp;${r.score}</td>
+      <td><span class="badge badge-${r.grade.toLowerCase()}">${r.grade}</span></td>
+    </tr>`).join('');
+}
+
+function renderExceptionTable() {
+  const rows = DATA.scorecard.map(r => ({
+    name:r.name, risk:r.risk, pref:r.pref,
+    pos:r.pos, exceptions:Math.round(r.pos*(1-r.otd/100)*0.4), spend:r.spend
+  })).sort((a,b)=>b.exceptions-a.exceptions).slice(0,10);
+  document.querySelector('#exceptionTable tbody').innerHTML = rows.map(r => {
+    const rate = ((r.exceptions/r.pos)*100).toFixed(1);
+    return `<tr>
+      <td><strong>${r.name}</strong></td>
+      <td><span class="badge badge-${r.risk.toLowerCase()}">${r.risk}</span></td>
+      <td><span class="badge ${r.pref?'badge-preferred':'badge-nonpreferred'}">${r.pref?'Yes':'No'}</span></td>
+      <td>${r.pos}</td>
+      <td style="color:${r.exceptions>10?'var(--bad)':'var(--warn)'};font-weight:600">${r.exceptions}</td>
+      <td>${rate}%</td>
+      <td>£${(r.spend/1e6).toFixed(1)}M</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderRecs() {
+  document.getElementById('rec-grid').innerHTML = DATA.recommendations.map(r => `
+    <div class="rec-card ${r.priority}">
+      <div class="rec-header">
+        <span class="rec-priority ${r.priority}">${r.priority}</span>
+        <span class="rec-area">${r.area}</span>
+      </div>
+      <div class="rec-finding">${r.finding}</div>
+      <div class="rec-action"><strong>Action:</strong> ${r.action}</div>
+      <div class="rec-footer">
+        <span>Owner: <strong>${r.owner}</strong></span>
+        <span class="rec-saving">💰 ${r.saving}</span>
+        <span>📅 ${r.timeline}</span>
+      </div>
+    </div>`).join('');
+}
+
+const BLUE = '#1a6bff';
+const COLORS = ['#1a6bff','#06b6d4','#8b5cf6','#f59e0b','#10b981','#ef4444','#f97316','#6366f1','#14b8a6','#ec4899'];
+const RISK_COLORS = {Low:'#16a34a',Medium:'#d97706',High:'#dc2626'};
+
+function initCharts() {
+  new Chart(document.getElementById('catChart'),{type:'bar',data:{labels:DATA.categories.labels,datasets:[{data:DATA.categories.values,backgroundColor:COLORS,borderRadius:5,borderSkipped:false}]},options:{responsive:true,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{ticks:{callback:v=>'£'+(v/1000).toFixed(0)+'M'},grid:{color:'#f0f3f6'}},y:{grid:{display:false},ticks:{font:{size:11}}}}}});
+  new Chart(document.getElementById('monthlyChart'),{type:'line',data:{labels:DATA.monthly.labels,datasets:[{data:DATA.monthly.values,borderColor:BLUE,backgroundColor:BLUE+'22',fill:true,tension:0.4,pointRadius:2,borderWidth:2}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{maxRotation:45,font:{size:10}},grid:{display:false}},y:{ticks:{callback:v=>'£'+(v/1000).toFixed(0)+'M'},grid:{color:'#f0f3f6'}}}}});
+  new Chart(document.getElementById('riskDonut'),{type:'doughnut',data:{labels:DATA.risk.labels,datasets:[{data:DATA.risk.values,backgroundColor:DATA.risk.colors,borderWidth:0,hoverOffset:6}]},options:{cutout:'65%',plugins:{legend:{display:true,position:'right'},tooltip:{callbacks:{label:c=>`${c.label}: ${c.parsed.toFixed(1)}%`}}}}});
+  new Chart(document.getElementById('invoiceChart'),{type:'doughnut',data:{labels:DATA.invoice.labels,datasets:[{data:DATA.invoice.values,backgroundColor:['#16a34a','#3b82f6','#dc2626'],borderWidth:0,hoverOffset:6}]},options:{cutout:'65%',plugins:{legend:{display:true,position:'right'}}}});
+  new Chart(document.getElementById('supplierSpendChart'),{type:'bar',data:{labels:DATA.suppliers.labels.map(l=>l.length>18?l.slice(0,17)+'…':l),datasets:[{data:DATA.suppliers.values,backgroundColor:DATA.suppliers.risk.map(r=>RISK_COLORS[r]),borderRadius:5,borderSkipped:false}]},options:{responsive:true,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{ticks:{callback:v=>'£'+(v/1000).toFixed(0)+'M'},grid:{color:'#f0f3f6'}},y:{grid:{display:false},ticks:{font:{size:11}}}}}});
+  new Chart(document.getElementById('deptChart'),{type:'bar',data:{labels:DATA.dept.labels,datasets:[{data:DATA.dept.values,backgroundColor:BLUE+'cc',borderRadius:5,borderSkipped:false}]},options:{responsive:true,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{ticks:{callback:v=>'£'+(v/1000).toFixed(0)+'M'},grid:{color:'#f0f3f6'}},y:{grid:{display:false},ticks:{font:{size:11}}}}}});
+  new Chart(document.getElementById('quarterlyChart'),{type:'bar',data:{labels:DATA.quarterly.labels,datasets:[{label:'2023',data:DATA.quarterly.y2023,backgroundColor:'#94a3b8',borderRadius:4},{label:'2024',data:DATA.quarterly.y2024,backgroundColor:BLUE,borderRadius:4}]},options:{responsive:true,plugins:{legend:{display:true,position:'top'}},scales:{x:{grid:{display:false}},y:{ticks:{callback:v=>'£'+(v/1000).toFixed(0)+'M'},grid:{color:'#f0f3f6'}}}}});
+  new Chart(document.getElementById('otdChart'),{type:'bar',data:{labels:DATA.scorecard.map(r=>r.name.length>18?r.name.slice(0,17)+'…':r.name),datasets:[{data:DATA.scorecard.map(r=>r.otd),backgroundColor:DATA.scorecard.map(r=>r.otd>=85?'#16a34a':r.otd>=70?'#d97706':'#dc2626'),borderRadius:4,borderSkipped:false}]},options:{responsive:true,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{min:0,max:100,ticks:{callback:v=>v+'%'},grid:{color:'#f0f3f6'}},y:{grid:{display:false},ticks:{font:{size:10}}}}}});
+  new Chart(document.getElementById('discountChart'),{type:'bar',data:{labels:DATA.scorecard.map(r=>r.name.length>18?r.name.slice(0,17)+'…':r.name),datasets:[{data:DATA.scorecard.map(r=>r.disc),backgroundColor:DATA.scorecard.map(r=>r.pref?BLUE+'cc':'#94a3b8'),borderRadius:4,borderSkipped:false}]},options:{responsive:true,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{ticks:{callback:v=>v+'%'},grid:{color:'#f0f3f6'}},y:{grid:{display:false},ticks:{font:{size:10}}}}}});
+  new Chart(document.getElementById('riskBar'),{type:'bar',data:{labels:DATA.risk.labels,datasets:[{data:DATA.risk.values,backgroundColor:DATA.risk.colors,borderRadius:8,borderSkipped:false}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{ticks:{callback:v=>v+'%'},grid:{color:'#f0f3f6'}}}}});
+  new Chart(document.getElementById('paretoChart'),{type:'bar',data:{labels:DATA.pareto.labels,datasets:[{type:'bar',data:DATA.pareto.cumulative,backgroundColor:BLUE+'33',borderRadius:4,yAxisID:'y'},{type:'line',data:DATA.pareto.cumulative,borderColor:BLUE,borderWidth:2.5,pointRadius:5,fill:false,tension:0,yAxisID:'y'}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:10},maxRotation:20}},y:{min:0,max:100,ticks:{callback:v=>v+'%'},grid:{color:'#f0f3f6'}}}}});
+}
+
+renderKPIs();
+renderBudgetTable();
+renderScorecard();
+renderExceptionTable();
+renderRecs();
+initCharts();
+</script>
+</body>
+</html>
